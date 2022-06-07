@@ -1,0 +1,52 @@
+---
+
+- name: Installing Apache web server and upload our index.html
+  hosts: myservers
+  become: yes
+
+  vars:
+
+    my_source_file: ./data/index.html
+    my_destination_file: /var/www/html
+
+  tasks:
+
+  - name: Check os family
+    debug:
+      var: ansible_os_family
+
+  - name: Install for RedHat
+    dnf:
+      pkg: httpd
+      state: latest
+      update_cache: yes
+    when: ansible_os_family == "RedHat"
+
+  - name: Start apache servers for RedHat
+    systemd:
+      name: httpd
+      enabled: yes
+      masked: no
+      state: started
+    when: ansible_os_family == "RedHat"
+
+  - name: Install for Debian
+    apt:
+      pkg: apache2
+      state: latest
+      update_cache: yes
+    when: ansible_os_family == "Debian"
+
+  - name: Start apache for Denbian
+    systemd:
+      name: apache2
+      enabled: yes
+      masked: no
+      state: started
+    when: ansible_os_family == "Debian"
+
+  - name: Copy our index.html file for CentOS
+    copy:
+      force: yes
+      src: "{{ my_source_file }}"
+      dest: "{{ my_destination_file }}"

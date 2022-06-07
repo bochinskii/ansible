@@ -1,0 +1,484 @@
+--------------
+Inventory файл
+--------------
+
+https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html
+
+Давайте начнем с того, что несколько улучшим наш inventory файл. Создадим новый
+с именем - hosts.
+
+С ним вы можете ознакомиться в корне директории с проектом. Можно заметить, что
+общие переменные данной групы серверов мы занесли в сущность [myservers:vars].
+Данное действие улучшило читабельность файла.
+
+
+
+Когда файл inventory сложный, то сложно понять какая переменная будет относиться к тому или иному серверу.
+В таких случаях нам поможет очень полезная команда:
+
+$ ansible-inventory -i ./hosts --list
+{
+    "_meta": {
+        "hostvars": {
+            "debian": {
+                "ansible_connection": "ssh",
+                "ansible_host": "127.0.0.1",
+                "ansible_port": 2322,
+                "ansible_ssh_private_key_file": "./keys/ansible.key",
+                "ansible_user": "vagrant"
+            },
+            "rocky": {
+                "ansible_connection": "ssh",
+                "ansible_host": "127.0.0.1",
+                "ansible_port": 2323,
+                "ansible_ssh_private_key_file": "./keys/ansible.key",
+                "ansible_user": "vagrant"
+            },
+            "ubuntu": {
+                "ansible_connection": "ssh",
+                "ansible_host": "127.0.0.1",
+                "ansible_port": 2321,
+                "ansible_ssh_private_key_file": "./keys/ansible.key",
+                "ansible_user": "vagrant"
+            }
+        }
+    },
+    "all": {
+        "children": [
+            "myservers",
+            "ungrouped"
+        ]
+    },
+    "myservers": {
+        "hosts": [
+            "debian",
+            "rocky",
+            "ubuntu"
+        ]
+    }
+}
+
+--------------------------------------------
+Перенос переменных из inventory в group_vars
+--------------------------------------------
+
+На самом деле переменные не должны находиться в inventory файле (как у нас сейчас).
+Правильно будет их перенести
+
+$ mkdir ./group_vars
+
+Созаддим файл - group_vars/myservers. Имя файла должно быть как имя группы в inventory
+файле. С ним можно ознакомиться в директории с проектом.
+
+Надо заметить, что данные символы (---) в начале файла необходимо указывать т.к.
+переменные записываются в файл формата yml.
+
+
+
+Теперь создадим inventory - hosts_new. С ним тоже можно ознакомиться в директории с проектом
+
+Таким образом мы создали файл в директории group_vars (обязательное название папки)
+файл с переменными, который должен называться так как группа серверов (в нашем случае myservers).
+
+Теперь, если будут в hosts файле появятся другие группы со своими переменными,
+то нужно создать файл с названием группы и вписать туда переменные.
+
+Так же можно создавать файлы не для всей группы, а для каждого сервера и заносить переменные,
+которые относятся к серверу. При этом название файла должно быть как алиас сервера.
+
+
+--------------------------------
+Ad-hoc команды
+--------------------------------
+
+Мы уже пользовались ad-hoc командами. Все команды, которые запускаются с помощью ansible называются ad-hoc.
+
+Вот пример очень полезной команды (ее полезность будет осознана в будущем).
+Она показывает всю информацию о серверах и записывает ее в переменные.
+Полезность заключается в том, что можно воспользоваться данными переменными во
+время конфигурирования.
+
+$ ansible -i ./hosts_new myservers -m setup
+
+...
+
+Вывод достаточно большой, поэтому приводить его не будем, для примера вот как можно запустить данную команду:
+
+$ ansible -i ./hosts_new myservers -m setup | grep ansible_os_family
+ "ansible_os_family": "Debian",
+ "ansible_os_family": "RedHat",
+ "ansible_os_family": "Debian",
+
+или вот еще пример
+
+$ ansible -i ./hosts_new myservers -m setup | grep ansible_distribution
+        "ansible_distribution": "Debian",
+        "ansible_distribution_file_parsed": true,
+        "ansible_distribution_file_path": "/etc/os-release",
+        "ansible_distribution_file_variety": "Debian",
+        "ansible_distribution_major_version": "11",
+        "ansible_distribution_release": "bullseye",
+        "ansible_distribution_version": "11",
+        "ansible_distribution": "Rocky",
+        "ansible_distribution_file_parsed": true,
+        "ansible_distribution_file_path": "/etc/redhat-release",
+        "ansible_distribution_file_variety": "RedHat",
+        "ansible_distribution_major_version": "8",
+        "ansible_distribution_release": "Green Obsidian",
+        "ansible_distribution_version": "8.5",
+        "ansible_distribution": "Ubuntu",
+        "ansible_distribution_file_parsed": true,
+        "ansible_distribution_file_path": "/etc/os-release",
+        "ansible_distribution_file_variety": "Debian",
+        "ansible_distribution_major_version": "22",
+        "ansible_distribution_release": "jammy",
+        "ansible_distribution_version": "22.04",
+
+Вот так можно запускать удаленно shell овские команды:
+
+$ ansible -i ./hosts_new myservers -m shell -a "uname -a"
+debian | CHANGED | rc=0 >>
+Linux debian 5.10.0-13-amd64 #1 SMP Debian 5.10.106-1 (2022-03-17) x86_64 GNU/Linux
+rocky | CHANGED | rc=0 >>
+Linux rocky 4.18.0-348.20.1.el8_5.x86_64 #1 SMP Thu Mar 10 20:59:28 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+ubuntu | CHANGED | rc=0 >>
+Linux ubuntu 5.15.0-33-generic #34-Ubuntu SMP Wed May 18 13:34:26 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+
+
+Есть схожый модуль raw
+
+$ ansible -i ./hosts_new myservers -m raw -a "uname -a"
+debian | CHANGED | rc=0 >>
+Linux debian 5.10.0-13-amd64 #1 SMP Debian 5.10.106-1 (2022-03-17) x86_64 GNU/Linux
+Shared connection to 127.0.0.1 closed.
+
+rocky | CHANGED | rc=0 >>
+Linux rocky 4.18.0-348.20.1.el8_5.x86_64 #1 SMP Thu Mar 10 20:59:28 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+Shared connection to 127.0.0.1 closed.
+
+ubuntu | CHANGED | rc=0 >>
+Linux ubuntu 5.15.0-33-generic #34-Ubuntu SMP Wed May 18 13:34:26 UTC 2022 x86_64 x86_64 x86_64 GNU/Linux
+Shared connection to 127.0.0.1 closed.
+
+
+Разница между ними состоит в том, что модуль raw не использует python для выполения команд.
+Т.е. данный модуль хорош в одном случае, если вам нужно сконфигурировать множество
+серверов, на который нет python.
+
+Что бы не устанавливать его вручную на каждом сервере, вы можете установить с помощью
+raw интерпретатор python, а далее уже другими модулями продолжать конфигурировать сервера.
+
+Воторой вариант при котором можно использовать raw, так это если вы хотите конфигурировать
+сетевое оборудование в котором нет python.
+
+Полезно будет узнать как скопировать файл на все сервера.
+Это полезно например для того, чтобы добавить конфиги. Хотя лучше это делать в playbook т.к.
+там можно использовать переменные (об этом позже):
+
+$ touch ./somefile.txt
+
+$ ansible -i ./hosts_new myservers -m copy -a "src=./somefile.txt dest=/home/vagrant/somefile.txt owner=vagrant mode=0644"
+debian | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "checksum": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "dest": "/home/vagrant/somefile.txt",
+    "gid": 1000,
+    "group": "vagrant",
+    "md5sum": "d41d8cd98f00b204e9800998ecf8427e",
+    "mode": "0644",
+    "owner": "vagrant",
+    "size": 0,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654581413.678058-15853-207895506069643/source",
+    "state": "file",
+    "uid": 1000
+}
+rocky | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": true,
+    "checksum": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "dest": "/home/vagrant/somefile.txt",
+    "gid": 1000,
+    "group": "vagrant",
+    "md5sum": "d41d8cd98f00b204e9800998ecf8427e",
+    "mode": "0644",
+    "owner": "vagrant",
+    "secontext": "unconfined_u:object_r:user_home_t:s0",
+    "size": 0,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654581413.6626573-15854-271981381823737/source",
+    "state": "file",
+    "uid": 1000
+}
+ubuntu | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "checksum": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "dest": "/home/vagrant/somefile.txt",
+    "gid": 1000,
+    "group": "vagrant",
+    "md5sum": "d41d8cd98f00b204e9800998ecf8427e",
+    "mode": "0644",
+    "owner": "vagrant",
+    "size": 0,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654581414.4275787-15852-133986103885775/source",
+    "state": "file",
+    "uid": 1000
+}
+
+
+Проверим:
+
+$ ansible -i ./hosts_new myservers -m shell -a "ls -l /home/vagrant"
+debian | CHANGED | rc=0 >>
+total 0
+-rw-r--r-- 1 vagrant vagrant 0 Jun  7 05:56 somefile.txt
+rocky | CHANGED | rc=0 >>
+total 0
+-rw-r--r--. 1 vagrant vagrant 0 Jun  7 05:56 somefile.txt
+ubuntu | CHANGED | rc=0 >>
+total 0
+-rw-r--r-- 1 vagrant vagrant 0 Jun  7 05:56 somefile.txt
+
+
+Удалим данный файл:
+$ ansible -i ./hosts_new myservers -m file -a "path=/home/vagrant/somefile.txt state=absent"
+debian | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "path": "/home/vagrant/somefile.txt",
+    "state": "absent"
+}
+rocky | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": true,
+    "path": "/home/vagrant/somefile.txt",
+    "state": "absent"
+}
+ubuntu | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "path": "/home/vagrant/somefile.txt",
+    "state": "absent"
+}
+
+
+Проверим:
+
+$ ansible -i ./hosts_new myservers -m shell -a "ls -l /home/vagrant"
+debian | CHANGED | rc=0 >>
+total 0
+rocky | CHANGED | rc=0 >>
+total 0
+ubuntu | CHANGED | rc=0 >>
+total 0
+
+
+Скачаем последнюю версию Drupal
+$ ansible -i./hosts_new myservers -m get_url -a "dest=/home/vagrant/drupal-latest.tar.gz url=https://www.drupal.org/download-latest/tar.gz"
+rocky | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": true,
+    "checksum_dest": null,
+    "checksum_src": "8a9b932abc64bfb0498d7dfd48242fea458ab0d9",
+    "dest": "/home/vagrant/drupal-latest.tar.gz",
+    "elapsed": 5,
+    "gid": 1000,
+    "group": "vagrant",
+    "md5sum": "e79fc2079e5d48a425d56ded201df066",
+    "mode": "0664",
+    "msg": "OK (20939797 bytes)",
+    "owner": "vagrant",
+    "secontext": "unconfined_u:object_r:user_home_t:s0",
+    "size": 20939797,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654581682.731563-16458-22713113039957/tmpkwv8k_gl",
+    "state": "file",
+    "status_code": 200,
+    "uid": 1000,
+    "url": "https://www.drupal.org/download-latest/tar.gz"
+}
+ubuntu | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "checksum_dest": null,
+    "checksum_src": "8a9b932abc64bfb0498d7dfd48242fea458ab0d9",
+    "dest": "/home/vagrant/drupal-latest.tar.gz",
+    "elapsed": 5,
+    "gid": 1000,
+    "group": "vagrant",
+    "md5sum": "e79fc2079e5d48a425d56ded201df066",
+    "mode": "0664",
+    "msg": "OK (20939797 bytes)",
+    "owner": "vagrant",
+    "size": 20939797,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654581689.0322976-16454-129615585098568/tmpqssjuibu",
+    "state": "file",
+    "status_code": 200,
+    "uid": 1000,
+    "url": "https://www.drupal.org/download-latest/tar.gz"
+}
+debian | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "checksum_dest": null,
+    "checksum_src": "8a9b932abc64bfb0498d7dfd48242fea458ab0d9",
+    "dest": "/home/vagrant/drupal-latest.tar.gz",
+    "elapsed": 22,
+    "gid": 1000,
+    "group": "vagrant",
+    "md5sum": "e79fc2079e5d48a425d56ded201df066",
+    "mode": "0644",
+    "msg": "OK (20939797 bytes)",
+    "owner": "vagrant",
+    "size": 20939797,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654581682.6521268-16456-17233052201348/tmp1ry4y78k",
+    "state": "file",
+    "status_code": 200,
+    "uid": 1000,
+    "url": "https://www.drupal.org/download-latest/tar.gz"
+}
+
+Проверим:
+
+$ ansible -i ./hosts_new myservers -m shell -a "ls -lh /home/vagrant"
+debian | CHANGED | rc=0 >>
+total 20M
+-rw-r--r-- 1 vagrant vagrant 20M Jun  7 06:01 drupal-latest.tar.gz
+ubuntu | CHANGED | rc=0 >>
+total 20M
+-rw-rw-r-- 1 vagrant vagrant 20M Jun  7 06:01 drupal-latest.tar.gz
+rocky | CHANGED | rc=0 >>
+total 20M
+-rw-rw-r--. 1 vagrant vagrant 20M Jun  7 06:01 drupal-latest.tar.gz
+
+
+Если команды не отрабатывают так как вы задумали, то вконце можно добавить некоторое количество - v (verbose).
+Таким образом можно производить debug команд
+
+$ ansible myservers -m shell -a "ls -l /home/vagrant" -v
+$ ansible myservers -m shell -a "ls -l /home/vagrant" -vv
+$ ansible myservers -m shell -a "ls -l /home/vagrant" -vvv
+
+Вывод показывать не будем.
+
+
+
+---------------------------------------------------
+Выполнение команд с привелегиями (sudo)
+------------------------------------------------------
+
+Если мы будем использовать команду для которой нужны привелигированные права,
+то у нас ничего не получится.
+
+Чтобы выполнять команды для которых нужны привелегии супер пользователя,
+при выполнении ad-hoc команд, нужно использовать определенные опции (-b, -K)
+
+$ ansible -i ./hosts_new myservers -m copy -a "src=./somefile.txt dest=/root/somefile.txt" -b -K
+BECOME password:
+debian | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "checksum": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "dest": "/root/somefile.txt",
+    "gid": 0,
+    "group": "root",
+    "md5sum": "d41d8cd98f00b204e9800998ecf8427e",
+    "mode": "0644",
+    "owner": "root",
+    "size": 0,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654582943.7400105-18462-88404565464401/source",
+    "state": "file",
+    "uid": 0
+}
+rocky | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": true,
+    "checksum": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "dest": "/root/somefile.txt",
+    "gid": 0,
+    "group": "root",
+    "md5sum": "d41d8cd98f00b204e9800998ecf8427e",
+    "mode": "0644",
+    "owner": "root",
+    "secontext": "system_u:object_r:admin_home_t:s0",
+    "size": 0,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654582943.7751658-18463-53733821458287/source",
+    "state": "file",
+    "uid": 0
+}
+ubuntu | CHANGED => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": true,
+    "checksum": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "dest": "/root/somefile.txt",
+    "gid": 0,
+    "group": "root",
+    "md5sum": "d41d8cd98f00b204e9800998ecf8427e",
+    "mode": "0644",
+    "owner": "root",
+    "size": 0,
+    "src": "/home/vagrant/.ansible/tmp/ansible-tmp-1654582944.8237894-18461-279395489906142/source",
+    "state": "file",
+    "uid": 0
+}
+
+-------------------------------------------------------------------------
+Дополнение:
+
+Напомню, что для пользователя vagrant используется пароль - vagrant.
+--------------------------------------------------------------------------
+
+Опция "-b" говорит о том, что нужно команду посылаюмую на сервера выполнить с привелегиями (sudo),
+а опция "-K" говорит о том что нужно спрашивать пароль.
+
+
+
+
+
+Если мы не хотим вводить пароль, а хотим чтобы он был послан автоматически, то можно
+указать вот такую переменную в group_vars'е - ansible_become_password.
+
+В нашем случае, раскомментируйте необходимую строчку а файле - group_vars/myservers.
+
+
+Теперь мы можем ввести команду без опции -K
+
+$ ansible -i ./hosts_new myservers -m copy -a "src=./somefile.txt dest=/root/somefile.txt" -b
+
+...
+
+$ ansible -i ./hosts_new myservers -m file -a "path=/root/somefile.txt state=absent" -b
+
+...
+
+Тут есть минус. Пароль для sudo хранится в открытом виде. Но позже мы это исправим.
+
+
+
+
+
+
+--------------------

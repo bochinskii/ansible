@@ -1,0 +1,35 @@
+---
+
+- name: Work with debug
+  hosts: myservers
+  become: yes
+
+  tasks:
+
+  # Show variable
+  - name: My OS family
+    debug:
+      msg: This is my family - "{{ ansible_os_family }}"
+
+  # Show variable from task
+  - name: Define variable
+    set_fact:
+      new_var: This is my family - "{{ ansible_os_family }}" and my ip address - "{{ ansible_default_ipv4.address }}"
+
+  - name: Show new variable
+    debug:
+      var: new_var
+
+  # Show variable from shell command
+  - name: Set uptime in variable
+    shell:
+      cmd: uptime
+    register: my_uptime
+
+  - name: Show uptime
+    debug:
+      var: my_uptime
+  # Show only what we need from my_uptime variable
+  - name: Show uptime
+    debug:
+      var: my_uptime.stdout

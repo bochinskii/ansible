@@ -1,0 +1,4 @@
+[myservers]
+ubuntu   ansible_port=2321
+debian	 ansible_port=2322
+rocky  	 ansible_port=2323

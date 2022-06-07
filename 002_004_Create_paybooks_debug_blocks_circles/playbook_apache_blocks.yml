@@ -1,0 +1,81 @@
+---
+
+- name: Installing Apache web server and upload our index.html
+  hosts: myservers
+  become: yes
+
+  vars:
+
+    my_source_file: ./data/index.html
+    my_destination_file: /var/www/html
+
+  tasks:
+
+  - name: Check os family
+    debug:
+      var: ansible_os_family
+
+
+  - block:  ## Block for RadHat ##
+
+    - name: Install for apache for RadHat
+      yum:
+        pkg: httpd
+        state: latest
+        update_cache: yes
+
+    - name: Start apache for RadHat
+      systemd:
+        name: httpd
+        enabled: yes
+        masked: no
+        state: started
+
+    - name: Firewalld start for RedHat
+      systemd:
+        name: firewalld
+        state: started
+        enabled: yes
+        masked: no
+
+    - name: Open http service for RedHat
+      firewalld:
+        service: http
+        permanent: yes
+        state: enabled
+      notify:
+      - "Firewalld reload"
+
+    when: ansible_os_family == "RedHat"
+
+
+  - block: ## Block for Debian ##
+
+    - name: Install for Debian
+      apt:
+        pkg: apache2
+        state: latest
+        update_cache: yes
+
+    - name: Start apache for Denbian
+      systemd:
+        name: apache2
+        enabled: yes
+        masked: no
+        state: started
+
+    when: ansible_os_family == "Debian"
+
+
+  - name: Copy our index.html file
+    copy:
+      src: "{{ my_source_file }}"
+      dest: "{{ my_destination_file }}"
+
+
+  handlers:
+
+    - name: Firewalld reload
+      systemd:
+        name: firewalld
+        state: reloaded

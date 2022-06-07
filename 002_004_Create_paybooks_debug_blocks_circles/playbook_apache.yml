@@ -1,0 +1,31 @@
+---
+
+- name: Installing Apache web server and upload our index.html
+  hosts: myservers
+  become: yes
+
+  vars:
+
+    my_source_file: ./data/index.html
+    my_destination_file: /var/www/html
+
+  tasks:
+
+  - name: Install for Debian Servers
+    apt:
+      pkg: apache2
+      state: latest
+      update_cache: yes
+
+  - name: Start apache servers
+    systemd:
+      name: apache2
+      enabled: yes
+      masked: no
+      state: started
+
+  - name: Copy our index.html file
+    copy:
+      force: yes
+      src: "{{ my_source_file }}"
+      dest: "{{ my_destination_file }}"

@@ -1,0 +1,176 @@
+---
+
+- name: Installing Apache web server and upload our index.html
+  hosts: myservers
+  become: yes
+
+  vars:
+
+    source_content_folder: ./data
+    destination_content_folder: /var/www/html
+
+  tasks:
+
+  - block:  ## Block for RadHat ##
+
+    - name: Install for apache for RadHat
+      dnf:
+        pkg: httpd
+        state: latest
+        update_cache: yes
+
+    - name: Start apache for RadHat
+      systemd:
+        name: httpd
+        enabled: yes
+        masked: no
+        state: started
+
+    - name: Import remi GPG key.
+      rpm_key:
+        key: https://rpms.remirepo.net/RPM-GPG-KEY-remi2018
+        state: present
+
+    - name: Install remi repo.
+      dnf:
+        name: https://rpms.remirepo.net/enterprise/remi-release-{{ ansible_distribution_major_version }}.rpm
+        state: present
+
+    - name: Install a modularity appstream with php remi 8.1 stream
+      dnf:
+        #name: '@php:7.4'
+        name: '@php:remi-8.1'
+        state: present
+
+    - name: Install PHP for RedHat
+      dnf:
+        pkg:
+         - php
+         - php-fpm
+         - php-mysqlnd
+         - php-cli
+         - php-common
+         - php-opcache
+         - php-mbstring
+         - php-gd
+         - php-curl
+        state: latest
+        update_cache: yes
+
+    - name: Start php-fpm for RadHat
+      systemd:
+        name: php-fpm
+        enabled: yes
+        masked: no
+        state: started
+      notify:
+       - "Apache restart for Redhat"
+
+    when: ansible_os_family == "RedHat"
+
+
+
+  - block: ## Block for bullseye
+
+    - name: Install tools
+      apt:
+        pkg:
+          - apt-transport-https
+          - lsb-release
+          - ca-certificates
+          - curl
+          - gnupg
+        state: latest
+        update_cache: yes
+
+    - name: APT_KEY | Install GPG key
+      apt_key:
+        url: https://packages.sury.org/php/apt.gpg
+
+    - name: APT_REPOSITORY | Add APT repository
+      apt_repository:
+        repo: deb https://packages.sury.org/php {{ ansible_distribution_release }} main
+
+    when: ansible_distribution_release == "bullseye"
+
+
+
+  - block: ## Block for Debian ##
+
+    - name: Install apache2 for Debian
+      apt:
+        pkg:
+          - apache2
+          - apache2-utils
+        state: latest
+        update_cache: yes
+
+    - name: Start apache for Denbian
+      systemd:
+        name: apache2
+        enabled: yes
+        masked: no
+        state: started
+
+    - name: Install PHP for Debian
+      apt:
+        pkg:
+         - php8.1
+         - php8.1-fpm
+         - libapache2-mod-php8.1
+         - libapache2-mod-fcgid
+         - php8.1-mysqlnd
+         - php8.1-cli
+         - php8.1-common
+         - php8.1-opcache
+         - php8.1-mbstring
+         - php8.1-gd
+         - php8.1-curl
+        state: latest
+        update_cache: yes
+
+    - name: Start php-fpm for Debian
+      systemd:
+        name: php8.1-fpm
+        enabled: yes
+        masked: no
+        state: started
+      notify:
+      - "Apache restart for Debian"
+
+    - name: Enable modules php-fpm for Debian
+      shell: |
+        a2enmod proxy_fcgi setenvif && a2enconf php8.1-fpm
+      notify:
+      - "Apache restart for Debian"
+
+
+    when: ansible_os_family == "Debian"
+
+
+  - name: Copy content
+    copy:
+      src: "{{ source_content_folder }}/{{ item }}"
+      dest: "{{ destination_content_folder }}/{{ item }}"
+    with_items:
+      - index.html
+      - info.php
+
+
+
+  handlers:
+
+    - name: Firewalld reload
+      systemd:
+        name: firewalld
+        state: reloaded
+
+    - name: Apache restart for Redhat
+      systemd:
+        name: httpd
+        state: restarted
+
+    - name: Apache restart for Debian
+      systemd:
+        name: apache2
+        state: restarted

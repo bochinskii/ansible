@@ -1,0 +1,138 @@
+----------------------------------
+Создание и проверка инфраструктуры
+----------------------------------
+
+$ mkdir ./keys
+
+$ ssh-keygen -t ecdsa -b 256 -f ./keys/ansible.key
+
+Создадим Vagrantfile. С ним можно ознакомиться в директории с проектом.
+
+Так можно проверить.
+
+$ ssh -i ./keys/ansible.key -p 2321 vagrant@127.0.0.1
+
+$ ssh -i ./keys/ansible.key -p 2322 vagrant@127.0.0.1
+
+$ ssh -i ./keys/ansible.key -p 2323 vagrant@127.0.0.1
+
+Заметка:
+
+Если вы не используете vagrant, а хотите с текущим пользователем пользоваться ansible,
+то вам нужно сгененировать ключи, если вы этого не сделали ранее и перенести их
+на машины, которыми вы будите управлять.
+
+$ ssh-keygen -t ecdsa -b 256
+
+$ ssh-copy-id <username>@<ip address>
+$ ssh-copy-id <username>@<ip address>
+$ ssh-copy-id <username>@<ip address>
+
+username - это учетная запись из под которой ansible будет конфигурировать сервера.
+Эта запись должна быть создана на управляемых машинах.
+
+-----------------------------------------------------------------------------------
+
+Перейдем в директорию для изучения данного материала:
+
+$ cd ./000_001_General
+
+Создадим inventory файл - hosts_check. Он будет в корневой директории с проектом.
+В данном случае мы используем в качестве имени cерверов алиасы (ubuntu, debian, rocky).
+Далее описали ip address, user, password (ansible_pass=) или ssh key (ansible_ssh_private_key=).
+Ну, и в нашем случае пришлось описать ssh порт.
+
+https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html
+
+Запустим модуль ping, для проверки машин.
+
+$ ansible -i hosts_check myservers -m ping
+debian | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+rocky | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+ubuntu | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+Как видим все работает.
+
+Мы запустили модуль ping на сервера, которые входят в группу - myservers инвентори файла,
+который называется hosts_check. Вместо имени группы можно использовать внутренние
+предопределенные группы, например группа - all будет означать запустить определенный
+модуль на все сервера описанные в определенном инвентори файле.
+
+Кстати, все сервера не входящие ни в одну группу на самом деле входят в предопределенную
+группу - ungrouped.
+
+
+
+
+
+Важный момент.
+
+Если мы не логинились через ssh на эти сервера ранее (до использования ansible),
+то можей произойти вот это:
+
+# ansible -i hosts myservers -m ping
+
+The authenticity of host '[127.0.0.1]:2321 ([127.0.0.1]:2321)' can't be established.
+ED25519 key fingerprint is SHA256:9oC3gQ+H2O6ywPGD0GT1a8Bxhos1vs9YiJLV2/pj+2k.
+This key is not known by any other names
+The authenticity of host '[127.0.0.1]:2322 ([127.0.0.1]:2322)' can't be established.
+ED25519 key fingerprint is SHA256:p3goSra/QqoUpC/GFDf7/lwxmRnsvWML4Cw799SOqZo.
+This key is not known by any other names
+
+Дело в том, что когда мы логинимся по ssh нужно чтобы отпечаток (fingerprint) был добавлен в файл ~/.ssh/known_hosts.
+Когда мы делаем это в перый раз, естественно в данном файле нет этой информации.
+
+--------------------------------------------------------------------------------------
+Заметка:
+
+Нашей инфраструктуры это не касается т.к. после запуска машин vagrant лезет на них по
+ssh, но в реальных условиях такая проблема может быть вполне реальна.
+-----------------------------------------------------------------------------------
+
+Если у нас серверов 3 штуки, то это не проблема. Можно сначала зайти на каждый,
+получить отпечаток и запускать ansible. Но если серверов 20, 30, более 100?
+Тут нам поможет конфигурационный файл ansible (ansible.cfg).
+Его нужно создать или использовать созданный.
+
+$ ansible --version
+ansible [core 2.12.6]
+  config file = /etc/ansible/ansible.cfg
+  configured module search path = ['/home/denisb/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /usr/lib/python3/dist-packages/ansible
+  ansible collection location = /home/denisb/.ansible/collections:/usr/share/ansible/collections
+  executable location = /usr/bin/ansible
+  python version = 3.10.4 (main, Apr  2 2022, 09:04:19) [GCC 11.2.0]
+  jinja version = 3.0.3
+  libyaml = True
+
+По-умолчанию он пустой. Приведем его к такому виду:
+
+$ nano /etc/ansible/ansible.cfg
+
+[defaults]
+# No host key chacking
+host_key_checking = false
+# Path to inventory
+#inventory = /ansible/hosts
+
+Теперь при запуске команды ansible проверка отпечатка происходить не будет.
+Бонусом, мы указали где находится наш inventory файл. Теперь при выполнении команд
+нам не нужно его указывать.

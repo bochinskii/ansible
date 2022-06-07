@@ -1,0 +1,78 @@
+----------------------------------------
+Циклы - With_Items, With_fileglob
+----------------------------------------
+
+Существуют циклы, которые внедряются в модули разработчиками модуля. Например,
+можно установить множество пакетов вот так:
+
+...
+
+- name: Install PHP for Debian
+  apt:
+    pkg:
+     - php8.1
+     - php8.1-fpm
+     - libapache2-mod-php8.1
+     - libapache2-mod-fcgid
+     - php8.1-mysqlnd
+     - php8.1-cli
+     - php8.1-common
+     - php8.1-opcache
+     - php8.1-mbstring
+     - php8.1-gd
+     - php8.1-curl
+    state: latest
+    update_cache: yes
+
+...
+
+А вот если нужно скопировать несколько файлов. А вот пример
+
+...
+
+vars:
+
+  source_content_folder: ./data
+  destination_content_folder: /var/www/html
+
+...
+
+- name: Copy content
+  copy:
+    src: "{{ source_content_folder }}/{{ item }}"
+    dest: "{{ destination_content_folder }}/{{ item }}"
+  with_items:
+    - index.html
+    - info.php
+
+...
+
+Тут у нас несколько файлов в директории и мы по типу pkg в модуле apt перечисляем
+их имена
+
+Теперь может возникнуть вопрос. А что если в нашей папке data не 2 файла, а сотни.
+Что, каждый описывать в with_item? Конечно - нет. Для таких задач есть цикл - with_fileglob.
+
+Вот пример
+
+...
+
+- name: Copy content
+    copy:
+      src: "{{ item }}"
+      dest: "{{ destination_content_folder }}"
+    with_fileglob:
+      - "{{ source_content_folder }}/*"
+
+...
+
+
+
+-----------------------------------------------
+Шаблоны (Templates)
+-----------------------------------------------
+
+
+
+
+--------------------------------------
