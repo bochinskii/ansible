@@ -1,0 +1,342 @@
+----------------------------------------
+Циклы - With_Items, With_fileglob
+----------------------------------------
+
+Будем рассматривать файл - playbook_apache_cycles_template.yml. С его создержимым
+можно ознакомиться в директории с проектом.
+
+
+Существуют циклы, которые внедряются в модули разработчиками модуля. Например,
+можно установить множество пакетов вот так:
+
+...
+
+- name: Install PHP for Debian
+  apt:
+    pkg:
+     - php8.1
+     - php8.1-fpm
+     - libapache2-mod-php8.1
+     - libapache2-mod-fcgid
+     - php8.1-mysqlnd
+     - php8.1-cli
+     - php8.1-common
+     - php8.1-opcache
+     - php8.1-mbstring
+     - php8.1-gd
+     - php8.1-curl
+    state: latest
+    update_cache: yes
+
+...
+
+А вот если нужно скопировать несколько файлов. А вот пример
+
+...
+
+vars:
+
+  source_content_folder: ./data
+  destination_content_folder: /var/www/html
+
+...
+
+- name: Copy content
+  copy:
+    src: "{{ source_content_folder }}/{{ item }}"
+    dest: "{{ destination_content_folder }}/{{ item }}"
+  with_items:
+    - index.html
+    - info.php
+
+...
+
+Тут у нас несколько файлов в директории и мы по типу pkg в модуле apt перечисляем
+их имена
+
+Теперь может возникнуть вопрос. А что если в нашей папке data не 2 файла, а сотни.
+Что, каждый описывать в with_item? Конечно - нет. Для таких задач есть цикл - with_fileglob.
+
+Вот пример
+
+...
+
+- name: Copy content
+    copy:
+      src: "{{ source_content_folder }}/{{ item }}"
+      dest: "{{ destination_content_folder }}"
+    with_fileglob:
+      - "{{ source_content_folder }}/*"
+
+...
+
+
+
+-----------------------------------------------
+Шаблоны (Templates)
+-----------------------------------------------
+
+Для чего нужны шаблоны? Вот например, у нас есть множество web серверов.
+Нужно установить apache и раздать конфигурационные файлы.
+
+Дело в том, что конфигурационные файлы будут отличаться. Например в строчки - ServerName.
+Так вот, шаблоны (templates) помогают нам в этом. Т.е. мы пишем конфигурационный
+файл в виде шаблона, а тем моменты где есть отличия мы описуем переменными.
+
+При копировании файла на соответствующий сервер в переменную будет подставляться
+то или иное значение.
+
+Мы возьмем пример менее полезный. Сделаем html страничку с помощью данного файла
+- info.j2. С этим файлом можно ознакомиться в директории с проектом.
+
+Вот как оно выглядит
+
+...
+
+- name: Copy content - template files
+  template:
+    src: "{{ item }}"
+    dest: "{{ destination_content_folder }}/{{ item | basename | regex_replace('.j2','.html') }}"
+  with_fileglob:
+    - "{{ source_content_folder }}/*.j2"
+
+...
+
+Тут нужно пояснить, что вместо "copy" используется модуль "template", а в
+остальном он полностью повторяем модуль copy.
+
+basename - говорит о том, что из переменной item мы возьмем только имя
+(info-1.j2, info-2.j2, info-1.j3).
+
+regex_replace('.j2','.html') - говорит о том, что заменим ".j2" на ".html".
+Таким образом файлы скопируются на сервера с другим именем
+(index.html, f1.html, f2.html, f3.html)
+
+
+
+Запустим
+
+$ ansible-playbook -i ./hosts playbook_apache_cycles_template.yml
+
+PLAY [Installing Apache web server and upload our index.html] ******************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [debian]
+ok: [rocky]
+ok: [ubuntu]
+
+TASK [Install Apache | RedHat] *************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [Start Apache | RedHat] ***************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [Import REMI repository GPG key | RedHat] *********************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [Install remi repo] *******************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [Install a modularity appstream with php remi 8.1 stream] *****************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [Install PHP for RedHat] **************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [Start php-fpm for RadHat] ************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [Install tools for bullseye] **********************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+ok: [debian]
+
+TASK [Install GPG key for PHP8.1] **********************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+ok: [debian]
+
+TASK [APT_REPOSITORY | Add APT repository] *************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+ok: [debian]
+
+TASK [Install apache2 for Debian] **********************************************************************************************************************************************
+skipping: [rocky]
+ok: [debian]
+ok: [ubuntu]
+
+TASK [Start apache for Denbian] ************************************************************************************************************************************************
+skipping: [rocky]
+ok: [debian]
+ok: [ubuntu]
+
+TASK [Install PHP for Debian] **************************************************************************************************************************************************
+skipping: [rocky]
+ok: [debian]
+ok: [ubuntu]
+
+TASK [Start php-fpm for Debian] ************************************************************************************************************************************************
+skipping: [rocky]
+ok: [debian]
+ok: [ubuntu]
+
+TASK [Enable modules php-fpm for Debian] ***************************************************************************************************************************************
+skipping: [rocky]
+changed: [ubuntu]
+changed: [debian]
+
+TASK [Copy content] ************************************************************************************************************************************************************
+ok: [debian] => (item=index.html)
+ok: [ubuntu] => (item=index.html)
+ok: [rocky] => (item=index.html)
+ok: [debian] => (item=info.php)
+ok: [ubuntu] => (item=info.php)
+ok: [rocky] => (item=info.php)
+
+TASK [Add template file] *******************************************************************************************************************************************************
+
+RUNNING HANDLER [Apache restart for Debian] ************************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=11   changed=2    unreachable=0    failed=0    skipped=8    rescued=0    ignored=0
+rocky                      : ok=9    changed=0    unreachable=0    failed=0    skipped=9    rescued=0    ignored=0
+ubuntu                     : ok=8    changed=2    unreachable=0    failed=0    skipped=11   rescued=0    ignored=0
+
+denisb@denisb-ws:~/WORK/ansible/002_004_Create_paybooks_debug_blocks_circles$
+denisb@denisb-ws:~/WORK/ansible/002_004_Create_paybooks_debug_blocks_circles$ ansible-playbook -i ./hosts playbook_apache_cycles_template.yml
+
+PLAY [Installing Apache web server and upload our index.html] ******************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [rocky]
+ok: [ubuntu]
+ok: [debian]
+
+TASK [Install Apache | RedHat] *************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [Start Apache | RedHat] ***************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [Import REMI repository GPG key | RedHat] *********************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [Install REMI repository | RedHat] ****************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [Install a REMI module with php-8.1] **************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [Install php-8.1 | RedHat] ************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [Start php-fpm | RedHat] **************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [Install tools | bullseye] ************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [Import SURY repository php GPG key | bullseye] ***************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [Install SURY repository php | bullseye] ************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [Install Apache2 | Debian] ************************************************************************************************************************************************
+skipping: [rocky]
+changed: [debian]
+changed: [ubuntu]
+
+TASK [Start Apache | Denbian] **************************************************************************************************************************************************
+skipping: [rocky]
+ok: [debian]
+ok: [ubuntu]
+
+TASK [Install php-8.1 | Debian] ************************************************************************************************************************************************
+skipping: [rocky]
+changed: [debian]
+changed: [ubuntu]
+
+TASK [Start php8.1-fpm | Debian] ***********************************************************************************************************************************************
+skipping: [rocky]
+ok: [ubuntu]
+ok: [debian]
+
+TASK [Enable Apache modules for php8.1-fpm | Debian] ***************************************************************************************************************************
+skipping: [rocky]
+changed: [debian]
+changed: [ubuntu]
+
+TASK [Copy content] ************************************************************************************************************************************************************
+changed: [debian] => (item=index.html)
+changed: [ubuntu] => (item=index.html)
+changed: [rocky] => (item=index.html)
+changed: [debian] => (item=info.php)
+changed: [ubuntu] => (item=info.php)
+changed: [rocky] => (item=info.php)
+
+TASK [Copy content - template files] *******************************************************************************************************************************************
+changed: [ubuntu] => (item=./data/info-2.j2)
+changed: [debian] => (item=./data/info-2.j2)
+changed: [rocky] => (item=./data/info-2.j2)
+changed: [debian] => (item=./data/info-1.j2)
+changed: [ubuntu] => (item=./data/info-1.j2)
+changed: [rocky] => (item=./data/info-1.j2)
+changed: [debian] => (item=./data/info-3.j2)
+changed: [ubuntu] => (item=./data/info-3.j2)
+changed: [rocky] => (item=./data/info-3.j2)
+
+RUNNING HANDLER [Apache restart for Redhat] ************************************************************************************************************************************
+changed: [rocky]
+
+RUNNING HANDLER [Apache restart for Debian] ************************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=12   changed=9    unreachable=0    failed=0    skipped=7    rescued=0    ignored=0
+rocky                      : ok=11   changed=10   unreachable=0    failed=0    skipped=8    rescued=0    ignored=0
+ubuntu                     : ok=9    changed=6    unreachable=0    failed=0    skipped=10   rescued=0    ignored=0
+
+
+
+
+
+Все рабботает. Теперь можете зайти на странички и потестировать.

@@ -13,36 +13,36 @@
 
   - block:  ## Block for RadHat ##
 
-    - name: Install for apache for RadHat
+    - name: Install Apache | RedHat
       dnf:
         pkg: httpd
         state: latest
         update_cache: yes
 
-    - name: Start apache for RadHat
+    - name: Start Apache | RedHat
       systemd:
         name: httpd
         enabled: yes
         masked: no
         state: started
 
-    - name: Import remi GPG key.
+    - name: Import REMI repository GPG key | RedHat
       rpm_key:
         key: https://rpms.remirepo.net/RPM-GPG-KEY-remi2018
         state: present
 
-    - name: Install remi repo.
+    - name: Install REMI repository | RedHat
       dnf:
         name: https://rpms.remirepo.net/enterprise/remi-release-{{ ansible_distribution_major_version }}.rpm
         state: present
 
-    - name: Install a modularity appstream with php remi 8.1 stream
+    - name: Install a REMI module with php-8.1
       dnf:
         #name: '@php:7.4'
         name: '@php:remi-8.1'
         state: present
 
-    - name: Install PHP for RedHat
+    - name: Install php-8.1 | RedHat
       dnf:
         pkg:
          - php
@@ -57,7 +57,7 @@
         state: latest
         update_cache: yes
 
-    - name: Start php-fpm for RadHat
+    - name: Start php-fpm | RedHat
       systemd:
         name: php-fpm
         enabled: yes
@@ -72,7 +72,7 @@
 
   - block: ## Block for bullseye
 
-    - name: Install tools
+    - name: Install tools | bullseye
       apt:
         pkg:
           - apt-transport-https
@@ -83,11 +83,11 @@
         state: latest
         update_cache: yes
 
-    - name: APT_KEY | Install GPG key
+    - name: Import SURY repository php GPG key | bullseye
       apt_key:
         url: https://packages.sury.org/php/apt.gpg
 
-    - name: APT_REPOSITORY | Add APT repository
+    - name: Install SURY repository php | bullseye
       apt_repository:
         repo: deb https://packages.sury.org/php {{ ansible_distribution_release }} main
 
@@ -97,7 +97,7 @@
 
   - block: ## Block for Debian ##
 
-    - name: Install apache2 for Debian
+    - name: Install Apache2 | Debian
       apt:
         pkg:
           - apache2
@@ -105,14 +105,14 @@
         state: latest
         update_cache: yes
 
-    - name: Start apache for Denbian
+    - name: Start Apache | Denbian
       systemd:
         name: apache2
         enabled: yes
         masked: no
         state: started
 
-    - name: Install PHP for Debian
+    - name: Install php-8.1 | Debian
       apt:
         pkg:
          - php8.1
@@ -129,7 +129,7 @@
         state: latest
         update_cache: yes
 
-    - name: Start php-fpm for Debian
+    - name: Start php8.1-fpm | Debian
       systemd:
         name: php8.1-fpm
         enabled: yes
@@ -138,7 +138,7 @@
       notify:
       - "Apache restart for Debian"
 
-    - name: Enable modules php-fpm for Debian
+    - name: Enable Apache modules for php8.1-fpm | Debian
       shell: |
         a2enmod proxy_fcgi setenvif && a2enconf php8.1-fpm
       notify:
@@ -156,14 +156,16 @@
       - index.html
       - info.php
 
+  - name: Copy content - template files
+    template:
+      src: "{{ item }}"
+      dest: "{{ destination_content_folder }}/{{ item | basename | regex_replace('.j2','.html') }}"
+    with_fileglob:
+      - "{{ source_content_folder }}/*.j2"
+
 
 
   handlers:
-
-    - name: Firewalld reload
-      systemd:
-        name: firewalld
-        state: reloaded
 
     - name: Apache restart for Redhat
       systemd:
