@@ -1,8 +1,9 @@
 ---
 
-- name: Installing Apache web server and upload our index.html
+- name: Installing Apache and PHP and upload content files
   hosts: myservers
   become: yes
+  #gather_facts: false
 
   vars:
 
@@ -12,6 +13,8 @@
   tasks:
 
   - block:  ## Block for RadHat ##
+
+    # Install Apache
 
     - name: Install Apache | RedHat
       dnf:
@@ -26,6 +29,8 @@
         masked: no
         state: started
 
+    # Install REMI and modules
+
     - name: Import REMI repository GPG key | RedHat
       rpm_key:
         key: https://rpms.remirepo.net/RPM-GPG-KEY-remi2018
@@ -36,11 +41,12 @@
         name: https://rpms.remirepo.net/enterprise/remi-release-{{ ansible_distribution_major_version }}.rpm
         state: present
 
-    - name: Install a REMI module with php-8.1
+    - name: Install a REMI module with php-8.1 | RedHat
       dnf:
-        #name: '@php:7.4'
         name: '@php:remi-8.1'
         state: present
+
+    # Insatll PHP
 
     - name: Install php-8.1 | RedHat
       dnf:

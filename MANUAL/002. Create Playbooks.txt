@@ -2,7 +2,7 @@
 Написание playbook
 --------------------------------------------
 
-$ cd ./002_Create_paybooks
+$ cd ./002_005_Create_paybooks_debug_blocks_circles_and_templates
 
 Напишем простейший playbook, который будет проверять соединение серверов.
 Будем использовать модуль ping (playbook_ping.yml)
