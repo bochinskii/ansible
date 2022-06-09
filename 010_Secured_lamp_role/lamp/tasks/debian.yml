@@ -1,0 +1,171 @@
+- block: ## Block for bullseye
+
+  - name: Install tools | bullseye
+    apt:
+      pkg:
+        - apt-transport-https
+        - lsb-release
+        - ca-certificates
+        - curl
+        - gnupg
+      state: latest
+      update_cache: yes
+
+  - name: Import SURY repository php GPG key | bullseye
+    apt_key:
+      url: "{{ sury_php_repo }}/apt.gpg"
+
+  - name: Install SURY repository php | bullseye
+    apt_repository:
+      repo: "deb {{ sury_php_repo }} {{ ansible_distribution_release }} main"
+
+  # Install MYSQL
+
+  - name:  Download MySQL config deb file | bullseye
+    get_url:
+      url: "{{ mysql_deb_repo }}"
+      dest: /usr/src
+      validate_certs: "no"
+
+  - name: Install MySQL repo deb | bullseye
+    apt:
+      deb: "/usr/src/{{ mysql_deb_package }}"
+
+  - name: Install MySQL packages | bullseye
+    apt:
+      pkg:
+      - python3-pip
+      - python3-mysqldb
+      - mysql-common
+      - mysql-server
+      state: present
+      allow_unauthenticated: true
+      update_cache: yes
+
+  - name: Start Mysql | bullseye
+    systemd:
+      name: mysql
+      enabled: yes
+      masked: no
+      state: started
+
+  - name: Install Required pip modules | bullseye
+    pip:
+      name:
+      - PyMySQL
+      state: present
+      executable: pip3
+
+  - name: Create root user | bullseye
+    mysql_user:
+      name: root
+      password: "{{ mysql_root_password }}"
+      login_user: root
+      login_host: localhost
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  - name: Reload privilege tables | bullseye
+    command: |
+      mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+    with_items:
+    - FLUSH PRIVILEGES;
+    changed_when: False
+
+
+  when: ansible_distribution_release == "bullseye"
+
+
+- block: ## Block for jammy
+
+  # Install mysql
+
+  - name: Install mysql | jammy
+    apt:
+      pkg:
+        - python3-pip
+        - python3-mysqldb
+        - mysql-server
+      state: latest
+      update_cache: yes
+
+  - name: Start mysql | jammy
+    systemd:
+      name: mysql
+      enabled: yes
+      masked: no
+      state: started
+
+  - name: Install Required pip modules | jammy
+    pip:
+      name:
+      - PyMySQL
+      state: present
+      executable: pip3
+
+  - name: Create root user | jammy
+    mysql_user:
+      name: root
+      password: "{{ mysql_root_password }}"
+      login_user: root
+      login_host: localhost
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  - name: Reload privilege tables | jammy
+    command: |
+      mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+    with_items:
+    - FLUSH PRIVILEGES;
+    changed_when: False
+
+  when: ansible_distribution_release == "jammy"
+
+  # Install Apache
+
+- name: Install Apache2 | Debian
+  apt:
+    pkg:
+      - apache2
+      - apache2-utils
+    state: latest
+    update_cache: yes
+
+- name: Start Apache | Denbian
+  systemd:
+    name: apache2
+    enabled: yes
+    masked: no
+    state: started
+
+  # Install PHP
+
+- name: Install php-8.1 | Debian
+  apt:
+    pkg:
+     - php8.1
+     - php8.1-fpm
+     - libapache2-mod-php8.1
+     - libapache2-mod-fcgid
+     - php8.1-mysqlnd
+     - php8.1-cli
+     - php8.1-common
+     - php8.1-opcache
+     - php8.1-mbstring
+     - php8.1-gd
+     - php8.1-curl
+    state: latest
+    update_cache: yes
+
+- name: Start php8.1-fpm | Debian
+  systemd:
+    name: php8.1-fpm
+    enabled: yes
+    masked: no
+    state: started
+  notify:
+  - "Apache restart for Debian"
+
+- name: Enable Apache modules for php8.1-fpm | Debian
+  shell: |
+    a2enmod proxy_fcgi setenvif && a2enconf php8.1-fpm
+  notify:
+  - "Apache restart for Debian"

@@ -1,0 +1,14 @@
+- name: Copy content
+  copy:
+    src: "{{ role_path }}/files/{{ item }}"
+    dest: "{{ destination_content_folder }}/{{ item }}"
+  with_items:
+    - index.html
+    - info.php
+
+- name: Copy content - template files
+  template:
+    src: "{{ item }}"
+    dest: "{{ destination_content_folder }}/{{ item | basename | regex_replace('.j2','.html') }}"
+  with_fileglob:
+    - "{{ role_path }}/templates/*.j2"

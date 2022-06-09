@@ -1,0 +1,17 @@
+---
+# tasks file for lamp
+
+
+- name: RedHat part
+  include_tasks: redhat.yml
+  when: ansible_os_family == "RedHat"
+
+- name: Debian part
+  include_tasks: debian.yml
+  when: ansible_os_family == "Debian"
+
+- name: MySQL secure installation
+  include_tasks: mysql_secure_install.yml
+
+- name: Copy content
+  include_tasks: content.yml

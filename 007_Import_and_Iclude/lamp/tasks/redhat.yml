@@ -1,0 +1,106 @@
+- name: Install Apache | RedHat
+  dnf:
+    pkg: httpd
+    state: latest
+    update_cache: yes
+
+- name: Start Apache | RedHat
+  systemd:
+    name: httpd
+    enabled: yes
+    masked: no
+    state: started
+
+# Install REMI and modules
+
+- name: Import REMI repository GPG key | RedHat
+  rpm_key:
+    key: "https://rpms.remirepo.net/{{ remi_gpg_key }}"
+    state: present
+
+- name: Install REMI repository | RedHat
+  dnf:
+    name: https://rpms.remirepo.net/enterprise/remi-release-{{ ansible_distribution_major_version }}.rpm
+    state: present
+
+- name: Install a REMI module with php-8.1 | RedHat
+  dnf:
+    name: '@php:remi-8.1'
+    state: present
+
+- name: Install a module with mysql 8.0 | RedHat
+  dnf:
+    name: '@mysql:8.0'
+    state: present
+
+# Install MYSQL
+
+- name: Install mysql | RedHat
+  dnf:
+    pkg:
+    - '@mysql'
+    - mysql-devel
+    - python39
+    - python39-devel
+    - python39-pip
+    - gcc
+    state: latest
+    update_cache: yes
+
+- name: Start mysql | RedHat
+  systemd:
+    name: mysqld
+    enabled: yes
+    masked: no
+    state: started
+
+- name: Define - ansible_python_interpreter variable for mysql_user module | RedHat
+  set_fact:
+    ansible_python_interpreter: /usr/bin/python3
+
+- name: Install Required pip modules | RedHat
+  pip:
+    name:
+    - PyMySQL
+    state: present
+    executable: pip3
+
+- name: Create root user | RedHat
+  mysql_user:
+    name: root
+    password: "{{ mysql_root_password }}"
+    login_user: root
+    login_host: localhost
+
+- name: Reload privilege tables | RedHat
+  command: |
+    mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+  with_items:
+  - FLUSH PRIVILEGES
+  changed_when: False
+
+# Insatll PHP
+
+- name: Install php-8.1 | RedHat
+  dnf:
+    pkg:
+     - php
+     - php-fpm
+     - php-mysqlnd
+     - php-cli
+     - php-common
+     - php-opcache
+     - php-mbstring
+     - php-gd
+     - php-curl
+    state: latest
+    update_cache: yes
+
+- name: Start php-fpm | RedHat
+  systemd:
+    name: php-fpm
+    enabled: yes
+    masked: no
+    state: started
+  notify:
+   - "Apache restart for Redhat"

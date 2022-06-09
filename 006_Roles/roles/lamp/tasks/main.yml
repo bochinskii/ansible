@@ -1,0 +1,340 @@
+---
+# tasks file for lamp
+
+- block:  ## Block for RadHat ##
+
+  # Install Apache
+
+  - name: Install Apache | RedHat
+    dnf:
+      pkg: httpd
+      state: latest
+      update_cache: yes
+
+  - name: Start Apache | RedHat
+    systemd:
+      name: httpd
+      enabled: yes
+      masked: no
+      state: started
+
+  # Install REMI and modules
+
+  - name: Import REMI repository GPG key | RedHat
+    rpm_key:
+      key: "https://rpms.remirepo.net/{{ remi_gpg_key }}"
+      state: present
+
+  - name: Install REMI repository | RedHat
+    dnf:
+      name: https://rpms.remirepo.net/enterprise/remi-release-{{ ansible_distribution_major_version }}.rpm
+      state: present
+
+  - name: Install a REMI module with php-8.1 | RedHat
+    dnf:
+      name: '@php:remi-8.1'
+      state: present
+
+  - name: Install a module with mysql 8.0 | RedHat
+    dnf:
+      name: '@mysql:8.0'
+      state: present
+
+  # Install MYSQL
+
+  - name: Install mysql | RedHat
+    dnf:
+      pkg:
+      - '@mysql'
+      - mysql-devel
+      - python39
+      - python39-devel
+      - python39-pip
+      - gcc
+      state: latest
+      update_cache: yes
+
+  - name: Start mysql | RedHat
+    systemd:
+      name: mysqld
+      enabled: yes
+      masked: no
+      state: started
+
+  - name: Define - ansible_python_interpreter variable for mysql_user module | RedHat
+    set_fact:
+      ansible_python_interpreter: /usr/bin/python3
+
+  - name: Install Required pip modules | RedHat
+    pip:
+      name:
+      - PyMySQL
+      state: present
+      executable: pip3
+
+  - name: Create root user | RedHat
+    mysql_user:
+      name: root
+      password: "{{ mysql_root_password }}"
+      login_user: root
+      login_host: localhost
+
+  - name: Reload privilege tables | RedHat
+    command: |
+      mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+    with_items:
+    - FLUSH PRIVILEGES
+    changed_when: False
+
+  # Insatll PHP
+
+  - name: Install php-8.1 | RedHat
+    dnf:
+      pkg:
+       - php
+       - php-fpm
+       - php-mysqlnd
+       - php-cli
+       - php-common
+       - php-opcache
+       - php-mbstring
+       - php-gd
+       - php-curl
+      state: latest
+      update_cache: yes
+
+  - name: Start php-fpm | RedHat
+    systemd:
+      name: php-fpm
+      enabled: yes
+      masked: no
+      state: started
+    notify:
+     - "Apache restart for Redhat"
+
+  when: ansible_os_family == "RedHat"
+
+
+
+- block: ## Block for bullseye
+
+  - name: Install tools | bullseye
+    apt:
+      pkg:
+        - apt-transport-https
+        - lsb-release
+        - ca-certificates
+        - curl
+        - gnupg
+      state: latest
+      update_cache: yes
+
+  - name: Import SURY repository php GPG key | bullseye
+    apt_key:
+      url: "{{ sury_php_repo }}/apt.gpg"
+
+  - name: Install SURY repository php | bullseye
+    apt_repository:
+      repo: "deb {{ sury_php_repo }} {{ ansible_distribution_release }} main"
+
+  # Install MYSQL
+
+  - name:  Download MySQL config deb file | bullseye
+    get_url:
+      url: "{{ mysql_deb_repo }}"
+      dest: /usr/src
+      validate_certs: "no"
+
+  - name: Install MySQL repo deb | bullseye
+    apt:
+      deb: "/usr/src/{{ mysql_deb_package }}"
+
+  - name: Install MySQL packages | bullseye
+    apt:
+      pkg:
+      - python3-pip
+      - python3-mysqldb
+      - mysql-common
+      - mysql-server
+      state: present
+      allow_unauthenticated: true
+      update_cache: yes
+
+  - name: Start Mysql | bullseye
+    systemd:
+      name: mysql
+      enabled: yes
+      masked: no
+      state: started
+
+  - name: Install Required pip modules | bullseye
+    pip:
+      name:
+      - PyMySQL
+      state: present
+      executable: pip3
+
+  - name: Create root user | bullseye
+    mysql_user:
+      name: root
+      password: "{{ mysql_root_password }}"
+      login_user: root
+      login_host: localhost
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  - name: Reload privilege tables | bullseye
+    command: |
+      mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+    with_items:
+    - FLUSH PRIVILEGES;
+    changed_when: False
+
+
+  when: ansible_distribution_release == "bullseye"
+
+
+- block:
+
+  # Install mysql
+
+  - name: Install mysql | jammy
+    apt:
+      pkg:
+        - python3-pip
+        - python3-mysqldb
+        - mysql-server
+      state: latest
+      update_cache: yes
+
+  - name: Start mysql | jammy
+    systemd:
+      name: mysql
+      enabled: yes
+      masked: no
+      state: started
+
+  - name: Install Required pip modules | jammy
+    pip:
+      name:
+      - PyMySQL
+      state: present
+      executable: pip3
+
+  - name: Create root user | jammy
+    mysql_user:
+      name: root
+      password: "{{ mysql_root_password }}"
+      login_user: root
+      login_host: localhost
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+
+  - name: Reload privilege tables | jammy
+    command: |
+      mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+    with_items:
+    - FLUSH PRIVILEGES;
+    changed_when: False
+
+  when: ansible_distribution_release == "jammy"
+
+
+- block: ## Block for Debian ##
+
+  # Install Apache
+
+  - name: Install Apache2 | Debian
+    apt:
+      pkg:
+        - apache2
+        - apache2-utils
+      state: latest
+      update_cache: yes
+
+  - name: Start Apache | Denbian
+    systemd:
+      name: apache2
+      enabled: yes
+      masked: no
+      state: started
+
+  # Install PHP
+
+  - name: Install php-8.1 | Debian
+    apt:
+      pkg:
+       - php8.1
+       - php8.1-fpm
+       - libapache2-mod-php8.1
+       - libapache2-mod-fcgid
+       - php8.1-mysqlnd
+       - php8.1-cli
+       - php8.1-common
+       - php8.1-opcache
+       - php8.1-mbstring
+       - php8.1-gd
+       - php8.1-curl
+      state: latest
+      update_cache: yes
+
+  - name: Start php8.1-fpm | Debian
+    systemd:
+      name: php8.1-fpm
+      enabled: yes
+      masked: no
+      state: started
+    notify:
+    - "Apache restart for Debian"
+
+  - name: Enable Apache modules for php8.1-fpm | Debian
+    shell: |
+      a2enmod proxy_fcgi setenvif && a2enconf php8.1-fpm
+    notify:
+    - "Apache restart for Debian"
+
+  when: ansible_os_family == "Debian"
+
+# Settings for ALL
+
+- name: Remove anonymous users
+  command: |
+    mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+  with_items:
+  - DELETE FROM mysql.user WHERE User=''
+  changed_when: False
+
+- name: Disallow root login remotely | RedHat
+  command: |
+    mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+  with_items:
+  - DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')
+  changed_when: False
+
+- name: Remove test database and access to it | RedHat
+  command: |
+    mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+  with_items:
+  - DROP DATABASE IF EXISTS test
+  - DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'
+  changed_when: False
+
+- name: Reload privilege tables | RedHat
+  command: |
+    mysql -p{{ mysql_root_password }} -ne "{{ item }}"
+  with_items:
+  - FLUSH PRIVILEGES;
+  changed_when: False
+
+- name: Copy content
+  copy:
+    src: "{{ role_path }}/files/{{ item }}"
+    dest: "{{ destination_content_folder }}/{{ item }}"
+  with_items:
+    - index.html
+    - info.php
+
+- name: Copy content - template files
+  template:
+    src: "{{ item }}"
+    dest: "{{ destination_content_folder }}/{{ item | basename | regex_replace('.j2','.html') }}"
+  with_fileglob:
+    - "{{ role_path }}/templates/*.j2"

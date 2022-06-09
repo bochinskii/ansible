@@ -1,0 +1,21 @@
+---
+
+- name: Error Handling
+  hosts: debian_servers
+  become: yes
+
+  tasks:
+
+  - name: Install tree
+    apt:
+      pkg: treee
+      state: latest
+    ignore_errors: yes
+
+  - name: Kernell version
+    shell: uname -r | cut -c 1-6
+    register: kernel_ver
+
+  - name: Show kernel version
+    debug:
+      var: kernel_ver.stdout

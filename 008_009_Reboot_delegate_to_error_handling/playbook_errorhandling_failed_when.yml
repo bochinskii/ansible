@@ -1,0 +1,26 @@
+---
+
+- name: Error Handling
+  hosts: debian_servers
+  become: yes
+
+  tasks:
+
+  - name: Install tree
+    apt:
+      pkg: treee
+      state: latest
+    ignore_errors: yes
+
+  - name: Kernell version
+    shell: uname -r | cut -c 1-6
+    register: kernel_ver
+
+  - name: Kernell minor version
+    shell: uname -r | cut -c 3-4
+    register: kernel_minor_ver
+    failed_when: kernel_minor_ver.stdout | int <= 10
+
+  - name: Show kernel version
+    debug:
+      var: kernel_ver.stdout

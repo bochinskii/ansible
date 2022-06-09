@@ -1,0 +1,988 @@
+-------------------------------------------------------------
+ Роли (Roles)
+-------------------------------------------------------------
+
+На самом деле роль (role)- это просто структуризация всего что мы писали в playbook.
+На примере будет понятно.
+
+Создадим роль, которую назовем - lamp (имя может быть произвольно).
+
+$ cd ./006_Roles/raw
+
+
+
+Возьмем за основу файл - playbook_lamp.yml.
+
+Там все просто.
+
+В блоке для rocky происходит установка LAMP и создание пользователя root с
+паролем (для MYSQL).
+
+Для того, чтобы можно было использовать модуль - mysql_user нужно обязательно поставить:
+- mysql-devel
+- python39
+- python39-devel
+- python39-pip
+- gcc
+
+а так же с помощью pip поставить - PyMySQL
+
+В блоке для bullseye устанавливается репозиторий для php, mysql и собственно
+сам сервер - mysql. Так же устанавливается пароль пользователя root (для MYSQL)
+
+Для модуля - mysql_user необходимо
+- python3-pip
+- python3-mysqldb
+
+а так же - PyMySQL
+
+Далее в блоке для - jemmy устанавливается mysql и пароль для root. Все как в
+bullsyey.
+
+Установка mysql разделена между jemmy и bullseye т.к. там есть разные нюансы.
+
+
+Далее в блоке debian устанавливается все что общее для jammy и bulseye - это
+apache и php.
+
+Ну и для всех выполняется безопасная настройка для mysql и копируется тестовые странички.
+
+Перед тем как мы его "разложим" в роль, можете его протестировать т.е. запустить.
+
+
+
+
+
+
+Для наглядности, будем делать роль по этому файлу.
+
+$ cd ./roles
+
+$ ansible-galaxy init lamp
+- Role lamp was created successfully
+
+Вот что данная команды создала в диреткории roles
+
+$ tree
+.
+└── lamp
+    ├── defaults
+    │   └── main.yml
+    ├── files
+    ├── handlers
+    │   └── main.yml
+    ├── meta
+    │   └── main.yml
+    ├── README.md
+    ├── tasks
+    │   └── main.yml
+    ├── templates
+    ├── tests
+    │   ├── inventory
+    │   └── test.yml
+    └── vars
+        └── main.yml
+
+9 directories, 8 files
+
+Чуток опишем.
+
+defaults, vars - директории с переменными (можно использовать только одну директорию).
+
+files - директория с файлами, которые должны быть скопированы на сервера.
+
+handlers, tasks - директории с  обработчиками (handlers) и заданиями (tasks) соответственно.
+
+templates - директория с файлами-шаблонами
+
+meta - директория с метаданными
+
+По факту, нам нужно будет взять наш playbook - playbook_lamp.yml и разложить его
+по директориям. Вот и все.
+
+
+
+
+Со всеми файлами вы можете ознакомиться в директории с проектом.
+
+Тут надо заметить некоторое изменений в tsaks/main.yml. Путь к контенту (файлам и шаблонам)
+лучше указать через переменную - role_path.
+
+Ну и обратите внимание на файл - playbook_lamp.yml. Т.к. ролей может быть много в playbook,
+то мы решили показать пример указания роли с условием. Т.е. роль lemp будет
+запускаться на RadHat и Debian подобных серверах. Но это условие не обяхательно в намем примере.
+Это показано для того, чтобы вы знали, что можно делать условия на уровне ролей.
+
+Вот что у нас получилось
+
+$ tree
+.
+├── group_vars
+│   └── myservers
+├── hosts
+├── lamp
+│   ├── defaults
+│   │   └── main.yml
+│   ├── files
+│   │   ├── index.html
+│   │   └── info.php
+│   ├── handlers
+│   │   └── main.yml
+│   ├── meta
+│   │   └── main.yml
+│   ├── README.md
+│   ├── tasks
+│   │   └── main.yml
+│   ├── templates
+│   │   ├── info-1.j2
+│   │   ├── info-2.j2
+│   │   └── info-3.j2
+│   ├── tests
+│   │   ├── inventory
+│   │   └── test.yml
+│   └── vars
+│       └── main.yml
+└── playbook_lamp.yml
+
+10 directories, 16 files
+
+
+
+
+Теперь можно запустить наш playbook
+
+$ ansible-playbook -i ./hosts playbook_lamp.yml
+
+PLAY [Installing LAMP and upload content files] ********************************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [rocky]
+ok: [ubuntu]
+ok: [debian]
+
+TASK [lamp : Install Apache | RedHat] ******************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Start Apache | RedHat] ********************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Import REMI repository GPG key | RedHat] **************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Install REMI repository | RedHat] *********************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Install a REMI module with php-8.1 | RedHat] **********************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Install a module with mysql 8.0 | RedHat] *************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Install mysql | RedHat] *******************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Start mysql | RedHat] *********************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Define - ansible_python_interpreter variable for mysql_user module | RedHat] **************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+ok: [rocky]
+
+TASK [lamp : Install Required pip modules | RedHat] ****************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Create root user | RedHat] ****************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+skipping: [ubuntu] => (item=FLUSH PRIVILEGES)
+skipping: [debian] => (item=FLUSH PRIVILEGES)
+ok: [rocky] => (item=FLUSH PRIVILEGES)
+
+TASK [lamp : Install php-8.1 | RedHat] *****************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Start php-fpm | RedHat] *******************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+changed: [rocky]
+
+TASK [lamp : Install tools | bullseye] *****************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Import SURY repository php GPG key | bullseye] ********************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Install SURY repository php | bullseye] ***************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Download MySQL config deb file | bullseye] ************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Install MySQL repo deb | bullseye] ********************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Install MySQL packages | bullseye] ********************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Start Mysql | bullseye] *******************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+ok: [debian]
+
+TASK [lamp : Install Required pip modules | bullseye] **************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Create root user | bullseye] **************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [rocky]
+changed: [debian]
+
+TASK [lamp : Reload privilege tables | bullseye] *******************************************************************************************************************************
+skipping: [ubuntu] => (item=FLUSH PRIVILEGES;)
+skipping: [rocky] => (item=FLUSH PRIVILEGES;)
+ok: [debian] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install mysql | jammy] ********************************************************************************************************************************************
+skipping: [debian]
+skipping: [rocky]
+changed: [ubuntu]
+
+TASK [lamp : Start mysql | jammy] **********************************************************************************************************************************************
+skipping: [debian]
+skipping: [rocky]
+ok: [ubuntu]
+
+TASK [lamp : Install Required pip modules | jammy] *****************************************************************************************************************************
+skipping: [debian]
+skipping: [rocky]
+changed: [ubuntu]
+
+TASK [lamp : Create root user | jammy] *****************************************************************************************************************************************
+skipping: [debian]
+skipping: [rocky]
+changed: [ubuntu]
+
+TASK [lamp : Reload privilege tables | jammy] **********************************************************************************************************************************
+skipping: [debian] => (item=FLUSH PRIVILEGES;)
+skipping: [rocky] => (item=FLUSH PRIVILEGES;)
+ok: [ubuntu] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install Apache2 | Debian] *****************************************************************************************************************************************
+skipping: [rocky]
+changed: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start Apache | Denbian] *******************************************************************************************************************************************
+skipping: [rocky]
+ok: [ubuntu]
+ok: [debian]
+
+TASK [lamp : Install php-8.1 | Debian] *****************************************************************************************************************************************
+skipping: [rocky]
+changed: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start php8.1-fpm | Debian] ****************************************************************************************************************************************
+skipping: [rocky]
+ok: [ubuntu]
+ok: [debian]
+
+TASK [lamp : Enable Apache modules for php8.1-fpm | Debian] ********************************************************************************************************************
+skipping: [rocky]
+changed: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Remove anonymous users] *******************************************************************************************************************************************
+ok: [debian] => (item=DELETE FROM mysql.user WHERE User='')
+ok: [ubuntu] => (item=DELETE FROM mysql.user WHERE User='')
+ok: [rocky] => (item=DELETE FROM mysql.user WHERE User='')
+
+TASK [lamp : Disallow root login remotely | RedHat] ****************************************************************************************************************************
+ok: [debian] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+ok: [ubuntu] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+ok: [rocky] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+
+TASK [lamp : Remove test database and access to it | RedHat] *******************************************************************************************************************
+ok: [ubuntu] => (item=DROP DATABASE IF EXISTS test)
+ok: [debian] => (item=DROP DATABASE IF EXISTS test)
+ok: [rocky] => (item=DROP DATABASE IF EXISTS test)
+ok: [ubuntu] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+ok: [debian] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+ok: [rocky] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+ok: [debian] => (item=FLUSH PRIVILEGES;)
+ok: [ubuntu] => (item=FLUSH PRIVILEGES;)
+ok: [rocky] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Copy content] *****************************************************************************************************************************************************
+changed: [debian] => (item=index.html)
+changed: [ubuntu] => (item=index.html)
+changed: [rocky] => (item=index.html)
+changed: [debian] => (item=info.php)
+changed: [ubuntu] => (item=info.php)
+changed: [rocky] => (item=info.php)
+
+TASK [lamp : Copy content - template files] ************************************************************************************************************************************
+changed: [debian] => (item=/006_Roles/roles/lamp/templates/info-2.j2)
+changed: [ubuntu] => (item=/006_Roles/roles/lamp/templates/info-2.j2)
+changed: [rocky] => (item=/006_Roles/roles/lamp/templates/info-2.j2)
+changed: [debian] => (item=/006_Roles/roles/lamp/templates/info-1.j2)
+changed: [ubuntu] => (item=/006_Roles/roles/lamp/templates/info-1.j2)
+changed: [debian] => (item=/006_Roles/roles/lamp/templates/info-3.j2)
+changed: [rocky] => (item=/006_Roles/roles/lamp/templates/info-1.j2)
+changed: [ubuntu] => (item=/006_Roles/roles/lamp/templates/info-3.j2)
+changed: [rocky] => (item=/006_Roles/roles/lamp/templates/info-3.j2)
+
+RUNNING HANDLER [lamp : Apache restart for Redhat] *****************************************************************************************************************************
+changed: [rocky]
+
+RUNNING HANDLER [lamp : Apache restart for Debian] *****************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=23   changed=14   unreachable=0    failed=0    skipped=19   rescued=0    ignored=0
+rocky                      : ok=22   changed=15   unreachable=0    failed=0    skipped=20   rescued=0    ignored=0
+ubuntu                     : ok=18   changed=9    unreachable=0    failed=0    skipped=24   rescued=0    ignored=0
+
+
+Все работает.
+
+
+
+
+-------------------------------------------
+Внешние переменные extra-vars
+-------------------------------------------
+
+Если коротко, то можно при выполнении команды ansible-playbook нашему playbook передать переменную.
+Зачем?
+
+К примеру, мы хотим запускать нашу роль то для одной группы серверов, то для другой.
+Что делать? Можно изменять файл playbook_lamp.yml, а именно строчку hosts, т.е
+писать там группу ту которую хотим. Но можно делать более изящно.
+
+Для этих целей мы создали еще один inventory файл - hosts_extra. С ним можете
+ознакомиться в директории с проектом.
+
+Так же создали playbook_lamp_extra.yml. В нем указали в параметре hosts переменную,
+которую будем изменять во время выполнения playbook'а. С ним вы тоже можете ознакомиться
+самостоятельно.
+
+Теперь, например запустим наш playbook только для группы серверов - centos
+
+$ ansible-playbook -i ./hosts_extra playbook_lamp_extra.yml -e "selected=redhat_servers"
+
+PLAY [Installing LAMP and upload content files] ********************************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [rocky]
+
+TASK [lamp : Install Apache | RedHat] ******************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Start Apache | RedHat] ********************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Import REMI repository GPG key | RedHat] **************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install REMI repository | RedHat] *********************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install a REMI module with php-8.1 | RedHat] **********************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install a module with mysql 8.0 | RedHat] *************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install mysql | RedHat] *******************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Start mysql | RedHat] *********************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Define - ansible_python_interpreter variable for mysql_user module | RedHat] **************************************************************************************
+ok: [rocky]
+
+TASK [lamp : Install Required pip modules | RedHat] ****************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Create root user | RedHat] ****************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+ok: [rocky] => (item=FLUSH PRIVILEGES)
+
+TASK [lamp : Install php-8.1 | RedHat] *****************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Start php-fpm | RedHat] *******************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install tools | bullseye] *****************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Import SURY repository php GPG key | bullseye] ********************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Install SURY repository php | bullseye] ***************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Download MySQL config deb file | bullseye] ************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Install MySQL repo deb | bullseye] ********************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Install MySQL packages | bullseye] ********************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Start Mysql | bullseye] *******************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Install Required pip modules | bullseye] **************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Create root user | bullseye] **************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Reload privilege tables | bullseye] *******************************************************************************************************************************
+skipping: [rocky] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install mysql | jammy] ********************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Start mysql | jammy] **********************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Install Required pip modules | jammy] *****************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Create root user | jammy] *****************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Reload privilege tables | jammy] **********************************************************************************************************************************
+skipping: [rocky] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install Apache2 | Debian] *****************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Start Apache | Denbian] *******************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Install php-8.1 | Debian] *****************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Start php8.1-fpm | Debian] ****************************************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Enable Apache modules for php8.1-fpm | Debian] ********************************************************************************************************************
+skipping: [rocky]
+
+TASK [lamp : Remove anonymous users] *******************************************************************************************************************************************
+ok: [rocky] => (item=DELETE FROM mysql.user WHERE User='')
+
+TASK [lamp : Disallow root login remotely | RedHat] ****************************************************************************************************************************
+ok: [rocky] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+
+TASK [lamp : Remove test database and access to it | RedHat] *******************************************************************************************************************
+ok: [rocky] => (item=DROP DATABASE IF EXISTS test)
+ok: [rocky] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+ok: [rocky] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Copy content] *****************************************************************************************************************************************************
+changed: [rocky] => (item=index.html)
+changed: [rocky] => (item=info.php)
+
+TASK [lamp : Copy content - template files] ************************************************************************************************************************************
+changed: [rocky] => (item=/006_Roles/roles/lamp/templates/info-2.j2)
+changed: [rocky] => (item=/006_Roles/roles/lamp/templates/info-1.j2)
+changed: [rocky] => (item=/006_Roles/roles/lamp/templates/info-3.j2)
+
+RUNNING HANDLER [lamp : Apache restart for Redhat] *****************************************************************************************************************************
+changed: [rocky]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+rocky                      : ok=22   changed=15   unreachable=0    failed=0    skipped=20   rescued=0    ignored=0
+
+Как мы видим, наш playbook запустился только для rocky.
+
+
+
+$ ansible-playbook -i ./hosts_extra playbook_lamp_extra.yml -e "selected=debian_servers"
+
+
+PLAY [Installing LAMP and upload content files] ********************************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [debian]
+ok: [ubuntu]
+
+TASK [lamp : Install Apache | RedHat] ******************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Start Apache | RedHat] ********************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Import REMI repository GPG key | RedHat] **************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Install REMI repository | RedHat] *********************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Install a REMI module with php-8.1 | RedHat] **********************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Install a module with mysql 8.0 | RedHat] *************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Install mysql | RedHat] *******************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Start mysql | RedHat] *********************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Define - ansible_python_interpreter variable for mysql_user module | RedHat] **************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Install Required pip modules | RedHat] ****************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Create root user | RedHat] ****************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+skipping: [ubuntu] => (item=FLUSH PRIVILEGES)
+skipping: [debian] => (item=FLUSH PRIVILEGES)
+
+TASK [lamp : Install php-8.1 | RedHat] *****************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Start php-fpm | RedHat] *******************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+
+TASK [lamp : Install tools | bullseye] *****************************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Import SURY repository php GPG key | bullseye] ********************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Install SURY repository php | bullseye] ***************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Download MySQL config deb file | bullseye] ************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Install MySQL repo deb | bullseye] ********************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Install MySQL packages | bullseye] ********************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Start Mysql | bullseye] *******************************************************************************************************************************************
+skipping: [ubuntu]
+ok: [debian]
+
+TASK [lamp : Install Required pip modules | bullseye] **************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Create root user | bullseye] **************************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Reload privilege tables | bullseye] *******************************************************************************************************************************
+skipping: [ubuntu] => (item=FLUSH PRIVILEGES;)
+ok: [debian] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install mysql | jammy] ********************************************************************************************************************************************
+skipping: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start mysql | jammy] **********************************************************************************************************************************************
+skipping: [debian]
+ok: [ubuntu]
+
+TASK [lamp : Install Required pip modules | jammy] *****************************************************************************************************************************
+skipping: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Create root user | jammy] *****************************************************************************************************************************************
+skipping: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Reload privilege tables | jammy] **********************************************************************************************************************************
+skipping: [debian] => (item=FLUSH PRIVILEGES;)
+ok: [ubuntu] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install Apache2 | Debian] *****************************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start Apache | Denbian] *******************************************************************************************************************************************
+ok: [debian]
+ok: [ubuntu]
+
+TASK [lamp : Install php-8.1 | Debian] *****************************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start php8.1-fpm | Debian] ****************************************************************************************************************************************
+ok: [ubuntu]
+ok: [debian]
+
+TASK [lamp : Enable Apache modules for php8.1-fpm | Debian] ********************************************************************************************************************
+changed: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Remove anonymous users] *******************************************************************************************************************************************
+ok: [debian] => (item=DELETE FROM mysql.user WHERE User='')
+ok: [ubuntu] => (item=DELETE FROM mysql.user WHERE User='')
+
+TASK [lamp : Disallow root login remotely | RedHat] ****************************************************************************************************************************
+ok: [debian] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+ok: [ubuntu] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+
+TASK [lamp : Remove test database and access to it | RedHat] *******************************************************************************************************************
+ok: [debian] => (item=DROP DATABASE IF EXISTS test)
+ok: [ubuntu] => (item=DROP DATABASE IF EXISTS test)
+ok: [debian] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+ok: [ubuntu] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+ok: [debian] => (item=FLUSH PRIVILEGES;)
+ok: [ubuntu] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Copy content] *****************************************************************************************************************************************************
+changed: [debian] => (item=index.html)
+changed: [ubuntu] => (item=index.html)
+changed: [debian] => (item=info.php)
+changed: [ubuntu] => (item=info.php)
+
+TASK [lamp : Copy content - template files] ************************************************************************************************************************************
+changed: [debian] => (item=/home/denisb/WORK/ansible/006_Roles/roles/lamp/templates/info-2.j2)
+changed: [ubuntu] => (item=/home/denisb/WORK/ansible/006_Roles/roles/lamp/templates/info-2.j2)
+changed: [debian] => (item=/home/denisb/WORK/ansible/006_Roles/roles/lamp/templates/info-1.j2)
+changed: [ubuntu] => (item=/home/denisb/WORK/ansible/006_Roles/roles/lamp/templates/info-1.j2)
+changed: [debian] => (item=/home/denisb/WORK/ansible/006_Roles/roles/lamp/templates/info-3.j2)
+changed: [ubuntu] => (item=/home/denisb/WORK/ansible/006_Roles/roles/lamp/templates/info-3.j2)
+
+RUNNING HANDLER [lamp : Apache restart for Debian] *****************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=23   changed=14   unreachable=0    failed=0    skipped=19   rescued=0    ignored=0
+ubuntu                     : ok=18   changed=9    unreachable=0    failed=0    skipped=24   rescued=0    ignored=0
+
+
+Как мы видим, наш playbook запустился только для debian.
+
+--------------------------------------------------------------------------
+Важно:
+
+Переменные, которые переданы с помощью extra_vars имеют высший приоритет.
+-------------------------------------------------------------------------
+
+
+
+
+----------------------
+Import и Include
+----------------------
+
+https://docs.ansible.com/ansible/2.9/user_guide/playbooks_reuse_includes.html
+
+Как мы помним роли помогли нам структурировать плейбук. Но тем не менее в основной файл,
+где описываются tasks может быть достаточно грамозким. Import и Include в помогут
+нам структурировать файл с task.
+
+
+$ cd ./007_Import_and_Iclude
+
+Здесь взята за основу роль, которую мы делали в 006_Roles директории.
+
+Обратите внимание на директорию tasks. Тут и произошли все изменения.
+
+Мы перенесли все что кассается RedHat, Debian в другие файлы. Тоже самое сделали с
+конфигурацией mysql и копированием контента.
+
+В файле - main.yml указали на них с помощью - include_tasks.
+
+
+
+
+Запустим и посмотрим как оно будет работать
+
+$ ansible-playbook -i ./hosts playbook_lamp.yml
+
+PLAY [Installing LAMP and upload content files] ********************************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [debian]
+ok: [rocky]
+ok: [ubuntu]
+
+TASK [lamp : RedHat part] ******************************************************************************************************************************************************
+skipping: [ubuntu]
+skipping: [debian]
+included: /007_Import_and_Iclude/lamp/tasks/redhat.yml for rocky
+
+TASK [lamp : Install Apache | RedHat] ******************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Start Apache | RedHat] ********************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Import REMI repository GPG key | RedHat] **************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install REMI repository | RedHat] *********************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install a REMI module with php-8.1 | RedHat] **********************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install a module with mysql 8.0 | RedHat] *************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Install mysql | RedHat] *******************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Start mysql | RedHat] *********************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Define - ansible_python_interpreter variable for mysql_user module | RedHat] **************************************************************************************
+ok: [rocky]
+
+TASK [lamp : Install Required pip modules | RedHat] ****************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Create root user | RedHat] ****************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+ok: [rocky] => (item=FLUSH PRIVILEGES)
+
+TASK [lamp : Install php-8.1 | RedHat] *****************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Start php-fpm | RedHat] *******************************************************************************************************************************************
+changed: [rocky]
+
+TASK [lamp : Debian part] ******************************************************************************************************************************************************
+skipping: [rocky]
+included: /007_Import_and_Iclude/lamp/tasks/debian.yml for ubuntu, debian
+
+TASK [lamp : Install tools | bullseye] *****************************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Import SURY repository php GPG key | bullseye] ********************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Install SURY repository php | bullseye] ***************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Download MySQL config deb file | bullseye] ************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Install MySQL repo deb | bullseye] ********************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Install MySQL packages | bullseye] ********************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Start Mysql | bullseye] *******************************************************************************************************************************************
+skipping: [ubuntu]
+ok: [debian]
+
+TASK [lamp : Install Required pip modules | bullseye] **************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Create root user | bullseye] **************************************************************************************************************************************
+skipping: [ubuntu]
+changed: [debian]
+
+TASK [lamp : Reload privilege tables | bullseye] *******************************************************************************************************************************
+skipping: [ubuntu] => (item=FLUSH PRIVILEGES;)
+ok: [debian] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install mysql | jammy] ********************************************************************************************************************************************
+skipping: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start mysql | jammy] **********************************************************************************************************************************************
+skipping: [debian]
+ok: [ubuntu]
+
+TASK [lamp : Install Required pip modules | jammy] *****************************************************************************************************************************
+skipping: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Create root user | jammy] *****************************************************************************************************************************************
+skipping: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Reload privilege tables | jammy] **********************************************************************************************************************************
+skipping: [debian] => (item=FLUSH PRIVILEGES;)
+ok: [ubuntu] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Install Apache2 | Debian] *****************************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start Apache | Denbian] *******************************************************************************************************************************************
+ok: [debian]
+ok: [ubuntu]
+
+TASK [lamp : Install php-8.1 | Debian] *****************************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+TASK [lamp : Start php8.1-fpm | Debian] ****************************************************************************************************************************************
+ok: [ubuntu]
+ok: [debian]
+
+TASK [lamp : Enable Apache modules for php8.1-fpm | Debian] ********************************************************************************************************************
+changed: [ubuntu]
+changed: [debian]
+
+TASK [lamp : MySQL secure installation] ****************************************************************************************************************************************
+included: /007_Import_and_Iclude/lamp/tasks/mysql_secure_install.yml for ubuntu, debian, rocky
+
+TASK [lamp : Remove anonymous users] *******************************************************************************************************************************************
+ok: [debian] => (item=DELETE FROM mysql.user WHERE User='')
+ok: [ubuntu] => (item=DELETE FROM mysql.user WHERE User='')
+ok: [rocky] => (item=DELETE FROM mysql.user WHERE User='')
+
+TASK [lamp : Disallow root login remotely | RedHat] ****************************************************************************************************************************
+ok: [debian] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+ok: [ubuntu] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+ok: [rocky] => (item=DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1'))
+
+TASK [lamp : Remove test database and access to it | RedHat] *******************************************************************************************************************
+ok: [debian] => (item=DROP DATABASE IF EXISTS test)
+ok: [ubuntu] => (item=DROP DATABASE IF EXISTS test)
+ok: [rocky] => (item=DROP DATABASE IF EXISTS test)
+ok: [debian] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+ok: [ubuntu] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+ok: [rocky] => (item=DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%')
+
+TASK [lamp : Reload privilege tables | RedHat] *********************************************************************************************************************************
+ok: [debian] => (item=FLUSH PRIVILEGES;)
+ok: [ubuntu] => (item=FLUSH PRIVILEGES;)
+ok: [rocky] => (item=FLUSH PRIVILEGES;)
+
+TASK [lamp : Copy content] *****************************************************************************************************************************************************
+included: /007_Import_and_Iclude/lamp/tasks/content.yml for ubuntu, debian, rocky
+
+TASK [lamp : Copy content] *****************************************************************************************************************************************************
+changed: [debian] => (item=index.html)
+changed: [ubuntu] => (item=index.html)
+changed: [rocky] => (item=index.html)
+changed: [debian] => (item=info.php)
+changed: [ubuntu] => (item=info.php)
+changed: [rocky] => (item=info.php)
+
+TASK [lamp : Copy content - template files] ************************************************************************************************************************************
+changed: [debian] => (item=/007_Import_and_Iclude/lamp/templates/info-2.j2)
+changed: [ubuntu] => (item=/007_Import_and_Iclude/lamp/templates/info-2.j2)
+changed: [rocky] => (item=/007_Import_and_Iclude/lamp/templates/info-2.j2)
+changed: [debian] => (item=/007_Import_and_Iclude/lamp/templates/info-1.j2)
+changed: [ubuntu] => (item=/007_Import_and_Iclude/lamp/templates/info-1.j2)
+changed: [debian] => (item=/007_Import_and_Iclude/lamp/templates/info-3.j2)
+changed: [ubuntu] => (item=/007_Import_and_Iclude/lamp/templates/info-3.j2)
+changed: [rocky] => (item=/007_Import_and_Iclude/lamp/templates/info-1.j2)
+changed: [rocky] => (item=/007_Import_and_Iclude/lamp/templates/info-3.j2)
+
+RUNNING HANDLER [lamp : Apache restart for Redhat] *****************************************************************************************************************************
+changed: [rocky]
+
+RUNNING HANDLER [lamp : Apache restart for Debian] *****************************************************************************************************************************
+changed: [debian]
+changed: [ubuntu]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=26   changed=14   unreachable=0    failed=0    skipped=6    rescued=0    ignored=0
+rocky                      : ok=25   changed=15   unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+ubuntu                     : ok=21   changed=9    unreachable=0    failed=0    skipped=11   rescued=0    ignored=0
+
+Как видите отработало все хорошо.
+
+
+
+
+-------------------------------------------------------------------------------------------------
+Заметка:
+
+Существует разница между include и import. Эта разница описана в документации по absible в виде таблицы.
+При этом, как показывает практика, большинство пользуется только include.
+-------------------------------------------------------------------------------------------

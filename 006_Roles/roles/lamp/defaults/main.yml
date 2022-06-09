@@ -1,0 +1,12 @@
+---
+# defaults file for lamp
+
+mysql_root_password: P@ssword12345
+mysql_deb_package: mysql-apt-config_0.8.22-1_all.deb
+mysql_deb_repo: http://dev.mysql.com/get/{{ mysql_deb_package }}
+
+remi_gpg_key: RPM-GPG-KEY-remi2018
+
+sury_php_repo: https://packages.sury.org/php
+
+destination_content_folder: /var/www/html

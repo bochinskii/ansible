@@ -1,0 +1,236 @@
+
+--------------------------------------------
+Хранение Секретов - ansible-vault
+--------------------------------------------
+
+С помощью ansible можно шифровать файлы. Зачем?
+Ну, например вам нужно написать очень серкетный playbook.
+
+Вот как это работает.
+
+# ansible-vault create playbook_very_secret.yml
+New Vault password:
+Confirm New Vault password:
+
+При этом откроется редактор vi в который можно вставить текст playbook'а
+
+Вот содержимое - secret_playbook_ping.yml
+'''''''''''''''''''''''''''''''''''''''''''
+---
+
+  - name: Very secret playbook
+    hosts: myservers
+
+    tasks:
+
+    - name: Ping
+      ping:
+
+'''''''''''''''''''''''''''''''''''''''''''
+
+Как видим, он зашифрован.
+
+$ cat secret_playbook_ping.yml
+$ANSIBLE_VAULT;1.1;AES256
+39663964653533666134336233336161633234363838383564626134303136636333663934386638
+3163356332383863343337663435623764323833313763630a383633613836393962616636613362
+37353735383165343734636661643635646661666532303332653431383834616363326665373031
+3638363236633535380a366461366131396132303636383530623030656537313333633834303635
+63616264303266373532323064303431363836623539623766666431366139313161613636316537
+61613032356333366331393731626137653633336438336536373033373937376134316230633931
+32643661646437313538353631333231636265396432396531333037633164396531353666353736
+32613662383332656361666365663034626236356131323864666161373036646466393534323461
+6664
+
+
+Запустим его
+
+$ ansible-playbook -i ./hosts secret_playbook_ping.yml
+ERROR! Attempting to decrypt but no vault secrets found
+
+Как видите выходит ошибка.
+
+
+
+Вот как нужно его запускать подобные playbooks'и.
+
+$ ansible-playbook -i ./hosts secret_playbook_ping.yml --ask-vault-pass
+Vault password:
+
+PLAY [Very secret playbook] ****************************************************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [debian]
+ok: [rocky]
+ok: [ubuntu]
+
+TASK [Ping] ********************************************************************************************************************************************************************
+ok: [debian]
+ok: [ubuntu]
+ok: [rocky]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+rocky                      : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+ubuntu                     : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+
+Если хотим отредактировать:
+
+$ ansible-vault edit secret_playbook_ping.yml
+Vault password:
+
+
+Если хотим посмотреть playbook без редактирования
+
+$ ansible-vault view secret_playbook_ping.yml
+Vault password:
+
+
+Если вдруг решили поменять пароль
+
+$ ansible-vault rekey secret_playbook_ping.yml
+Vault password:
+New Vault password:
+Confirm New Vault password:
+Rekey successful
+
+
+
+
+
+Что если у нас уже есть файл, который нужно зашифровать
+
+$ ansible-vault encrypt playbook_lamp.yml
+
+Так же легко расшифровать файл
+
+$ ansible-vault decrypt playbook_lamp.yml
+Vault password:
+Decryption successful
+
+
+
+
+Можно было заметить, что при запуске playbook мы должны вводить vault пароль.
+Чтобы его постоянно не вводить, пароль можно записать в файл с произвольным именем.
+
+$ echo -n "123456789" > vault_pass
+
+$ ansible-playbook -i ./hosts secret_playbook_ping.yml --vault-password-file ./vault_pass
+
+PLAY [Very secret playbook] ****************************************************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+ok: [debian]
+ok: [rocky]
+ok: [ubuntu]
+
+TASK [Ping] ********************************************************************************************************************************************************************
+ok: [debian]
+ok: [ubuntu]
+ok: [rocky]
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+rocky                      : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+ubuntu                     : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+
+
+
+
+Теперь давайте сделаем что-то более полезное, что часто используется.
+
+Если вы помните, то у нас есть файл с переменными - group_vars/myservers
+
+Тут есть переменная ansible_become_password, которая содержить пароль для sudo в наших серверах.
+Можно данную переменную зашифровать.
+
+$ ansible-vault encrypt_string --stdin-name "ansible_become_password"
+New Vault password:
+Confirm New Vault password:
+Reading plaintext input from stdin. (ctrl-d to end input, twice if your content does not already have a newline)
+vagrant
+ansible_become_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          36383334396637313664383337343431316238636462613966663465336134626365363136396538
+          6336326562626666393134646338626364653436363039360a373066366365643039383361343231
+          32303831366661346334626466646661343461393033343361333262396462353362623861653337
+          6631383666656432310a333732356366393934336366623230356634666538366463653935613431
+          6435
+Encryption successful
+
+
+В качестве --stdin-name может выступать любое имя, но логичней всего использовать имя переменной.
+
+Теперь копируем все что начинается со знака - ! (включая его) и заносим в переменную
+на файле group_vars/myservers.
+
+Так же, если помните у нас есть пароль пользователя root для mysql. Давайте и его зашифруем.
+Для примера зашифруем его используя несколько другую конструкцию
+
+$ echo -n "P@ssword12345" | ansible-vault encrypt_string --stdin-name "mysql_root_password"
+New Vault password:
+Confirm New Vault password:
+Reading plaintext input from stdin. (ctrl-d to end input, twice if your content does not already have a newline)
+
+mysql_root_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          38336237653763663266316139653338393265613865666230373937306664363132616239393438
+          6463666164653438316661653365303065616562653764380a316662373131323135373434306362
+          35646362653064383035303430336361373432643836653231363461616433623535393964666461
+          6162623039396139310a653638363339333466303937616431343232366437326534303634316439
+          6234
+Encryption successful
+
+Не забываем вставить зашифрованное значение переменной в lamp/defaults/main.yml
+
+
+
+
+Теперь давайте запустим playbook с lamp ролью
+
+$ ansible-playbook -i ./hosts playbook_lamp.yml
+
+PLAY [Installing LAMP and upload content files] ********************************************************************************************************************************
+
+TASK [Gathering Facts] *********************************************************************************************************************************************************
+fatal: [ubuntu]: FAILED! => {"msg": "Attempting to decrypt but no vault secrets found"}
+fatal: [debian]: FAILED! => {"msg": "Attempting to decrypt but no vault secrets found"}
+fatal: [rocky]: FAILED! => {"msg": "Attempting to decrypt but no vault secrets found"}
+
+PLAY RECAP *********************************************************************************************************************************************************************
+debian                     : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+rocky                      : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+ubuntu                     : ok=0    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0
+
+Как мы видим произошла ошибка, говорящая о том, что есть зашифрованные данные,
+для которых не указан vault пароль.
+
+
+Запустим правильно
+
+$ ansible-playbook -i ./hosts playbook_lamp.yml --vault-password-file ./vault_pass
+
+...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------

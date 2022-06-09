@@ -1,0 +1,10 @@
+---
+
+- name: Installing LAMP and upload content files
+  hosts: myservers
+  become: yes
+  #gather_facts: false
+
+  roles:
+    - role: lamp
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"

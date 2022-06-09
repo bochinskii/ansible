@@ -1,0 +1,12 @@
+---
+# handlers file for lamp
+
+- name: Apache restart for Redhat
+  systemd:
+    name: httpd
+    state: restarted
+
+- name: Apache restart for Debian
+  systemd:
+    name: apache2
+    state: restarted

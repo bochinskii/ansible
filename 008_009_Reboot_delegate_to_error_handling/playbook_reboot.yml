@@ -1,0 +1,23 @@
+---
+
+- name: Reboot
+  hosts: "{{ selected }}"
+  become: yes
+
+  tasks:
+
+  - name: Reboot our servers
+    shell: systemctl reboot
+    async: 1
+    poll: 0
+
+  - name: Wait for our servers
+    wait_for:
+      #host: "{{ ansible_default_ipv4.address }}"
+      #port: 80
+      host: "{{ ansible_host }}"
+      state: started
+      port: "{{ ansible_port }}"
+      delay: 10
+      timeout: 120
+    delegate_to: 127.0.0.1

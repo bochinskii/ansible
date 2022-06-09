@@ -11,6 +11,10 @@
     mysql_deb_package: mysql-apt-config_0.8.22-1_all.deb
     mysql_deb_repo: http://dev.mysql.com/get/{{ mysql_deb_package }}
 
+    remi_gpg_key: RPM-GPG-KEY-remi2018
+
+    sury_php_repo: https://packages.sury.org/php
+
     source_content_folder: ./data
     destination_content_folder: /var/www/html
 
@@ -38,7 +42,7 @@
 
     - name: Import REMI repository GPG key | RedHat
       rpm_key:
-        key: https://rpms.remirepo.net/RPM-GPG-KEY-remi2018
+        key: "https://rpms.remirepo.net/{{ remi_gpg_key }}"
         state: present
 
     - name: Install REMI repository | RedHat
@@ -147,11 +151,11 @@
 
     - name: Import SURY repository php GPG key | bullseye
       apt_key:
-        url: https://packages.sury.org/php/apt.gpg
+        url: "{{ sury_php_repo }}/apt.gpg"
 
     - name: Install SURY repository php | bullseye
       apt_repository:
-        repo: deb https://packages.sury.org/php {{ ansible_distribution_release }} main
+        repo: "deb {{ sury_php_repo }} {{ ansible_distribution_release }} main"
 
     # Install MYSQL
 
@@ -347,6 +351,13 @@
     with_items:
       - index.html
       - info.php
+
+  - name: Copy content - template files
+    template:
+      src: "{{ item }}"
+      dest: "{{ destination_content_folder }}/{{ item | basename | regex_replace('.j2','.html') }}"
+    with_fileglob:
+      - "{{ source_content_folder }}/*.j2"
 
 
   handlers:
